@@ -2,7 +2,7 @@
  * @Author: userName userEmail
  * @Date: 2026-05-18 11:39:04
  * @LastEditors: userName userEmail
- * @LastEditTime: 2026-05-23 18:56:42
+ * @LastEditTime: 2026-05-24 15:57:44
  * @FilePath: \徐晨冰_TS_20260518\types\index.d.ts
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -39,15 +39,18 @@ export interface DftBaseCfg {
     timeout: number; //把这个作为上层功能
 }
 
-export interface AdaptorReq<T = any> {
+export interface AdaptorReq<T = any> extends Partial<DftBaseCfg> {
     url: string;
-    baseUrl?: string;
     method: ApiMethodType,
     data?: T,
     params?: Record<string, string | number>,
     headers?: Record<string, string>,
     query?: Record<string, string | number>
 };
+
+
+export interface AllReqConfig<T = any> extends DftBaseCfg, AdaptorReq<T> {}
+
 
 
 export type ReqInterceptorConfig<T = any> = {
@@ -63,8 +66,31 @@ export type ReqInterceptor = <T =  any>(config: ReqInterceptorConfig<T>) => ReqI
 export type ResInterceptor = <T = any>(res: ResInterceptorConfig<T>) => ResInterceptorConfig<T>;
 
 
-export interface jsonCfgType {
+export interface JsonCfgType {
   url: string;
   method: ApiMethodType;
   [key: string]: any;
 };
+
+
+
+export interface DecorateInstanceType<T = any, D = any> {
+  this: T,
+  arguments:D
+  originMethod: (...args:any[]) => any,
+  after: Array<(...args: any[]) => any>
+  registryAfter: (...args: any[]) => any
+  result?: T
+  cancel: Boolean
+}
+
+export interface CombinateInstanceType<T = any, D = any> {
+  originMethod: (...args: any[]) => any;
+  after: Array<(...args: any[]) => any>;
+  registryAfter: (...args: any[]) => any;
+  arguments: D;
+  result?: T;
+  cancel: Boolean;
+}
+
+export type ToolInstanceType<T = any, D = any> = (config: DecorateInstanceType<T, D> | CombinateInstanceType<T>) => any;
