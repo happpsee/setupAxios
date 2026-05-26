@@ -45,7 +45,8 @@ export interface AdaptorReq<T = any> extends Partial<DftBaseCfg> {
     data?: T,
     params?: Record<string, string | number>,
     headers?: Record<string, string>,
-    query?: Record<string, string | number>
+    query?: Record<string, string | number>,
+    signal?: AbortSignal
 };
 
 

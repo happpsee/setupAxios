@@ -21,11 +21,13 @@ const platformRequest:PlatformAdaptor = (config: DftBaseCfg) => {
 
   const request = async <Req = any, Res = any>(reqCfg: AdaptorReq<Req>): Promise<Res> => {
     //cfg是本次配置，这里合并
-    const cfg = ({...reqCfg, ...config}) as AllReqConfig<Req>; 
+    const cfg = ({ ...config, ...reqCfg }) as AllReqConfig<Req>;
 
     const url = urlParamsParse(cfg);
 
-    const reqInit = {} as Record<string, any>;
+    const reqInit: RequestInit = {
+      method: cfg.method,
+    };
 
     if (cfg.method !== "GET" && cfg.data) {
       writeBodyData(reqInit, cfg);

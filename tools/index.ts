@@ -9,7 +9,7 @@
 import { Log } from "./log.js";
 
 export const toolManageFactory = () => {
-  const toolMap = new Map([["log", Log]]);
+  const toolMap = new Map([["log", Log()]]);
 
   const addTool = (toolName: string, tool: any) => {
     toolMap.set(toolName, tool);

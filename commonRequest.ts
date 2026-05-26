@@ -10,7 +10,7 @@ export const setupAxios = (config: DftBaseCfg, platform: PlatformType = "web") =
 
   let resInterceptor = [] as  ResInterceptor[]; 
 
-  const temporySet = new WeakSet();
+  const temporarySet = new WeakSet();
 
   //在这里呢，需要
   const commonRequest = async <T = any, D = any>(requestConfig: AdaptorReq<D>) => {
@@ -19,16 +19,16 @@ export const setupAxios = (config: DftBaseCfg, platform: PlatformType = "web") =
       config: requestConfig
     };
 
-    const config = reqInterceptor.reduce((a, c) => c(a), reqInterceptorInstance);
+    const interceptedConfig = reqInterceptor.reduce((a, c) => c(a), reqInterceptorInstance);
 
     //清除局部请求拦截器
     reqInterceptor = reqInterceptor.filter((item) => {
-      if (!temporySet.has(item)) return true;
-      temporySet.delete(item);
+      if (!temporarySet.has(item)) return true;
+      temporarySet.delete(item);
       return false;
     });
 
-    const ans = await platformReq<D, T>(config.config);
+    const ans = await platformReq<D, T>(interceptedConfig.config);
 
     const resInterceptorInstance: ResInterceptorConfig<T> = {
       data: ans
@@ -39,24 +39,24 @@ export const setupAxios = (config: DftBaseCfg, platform: PlatformType = "web") =
 
     //清除局部响应拦截器
     resInterceptor = resInterceptor.filter((item) => {
-      if (!temporySet.has(item)) return true;
-      temporySet.delete(item);
+      if (!temporarySet.has(item)) return true;
+      temporarySet.delete(item);
       return false;
     });
 
     return result;
   };
   
-  const addReqInterceptor = (fn: ReqInterceptor, isTempory = false) => {
-    if (!isTempory) {
-      temporySet.add(fn);
+  const addReqInterceptor = (fn: ReqInterceptor, isTemporary = false) => {
+    if (isTemporary) {
+      temporarySet.add(fn);
     }
     reqInterceptor.push(fn);
   };
 
-  const addResInterceptor = (fn: ResInterceptor, isTempory = false) => {
-    if (!isTempory) {
-      temporySet.add(fn);
+  const addResInterceptor = (fn: ResInterceptor, isTemporary = false) => {
+    if (isTemporary) {
+      temporarySet.add(fn);
     }
     resInterceptor.push(fn);
   };

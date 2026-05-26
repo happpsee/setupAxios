@@ -9,7 +9,4 @@
 export { setupAxios } from "./commonRequest.js";
 export { setupApiAxios } from "./apiRequest.js";
 export { setupJsonAxios } from "./jsonRequest.js";
-
-
-//1.类型支持很差劲
-//2. 装饰工具能做的扩展操作很少
+export { registerAdaptor } from "./platform/index.js";

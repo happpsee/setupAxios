@@ -10,7 +10,7 @@ import type { AllReqConfig } from "../types/index.js";
 
 export const urlParamsParse = (config: AllReqConfig): URL => {
   
-  const url = new URL(config.baseUrl, config.url);
+  const url = new URL(config.url, config.baseUrl);
   const searchParam = url.searchParams;
   
   config?.params && (Object.entries(config.params).forEach((item) => {
