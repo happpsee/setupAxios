@@ -86,7 +86,7 @@ SetupAxios 的目标是为 Ajax 框架提供一个新的可能：在裸请求（
 
 - **语言**：TypeScript
 - **打包工具**：Webpack
-- **输出格式**：ESM + CJS + UMD（当前 `package.json` 中 `"type": "module"` 为临时设置，最终需支持多格式）
+- **输出格式**：ESM
 - **包管理器**：pnpm
 
 ### 3.2 架构约束
@@ -139,7 +139,7 @@ SetupAxios/
 - [ ] 内置 errReport 装饰器捕获请求异常并执行上报逻辑
 - [ ] 用户可通过 `addTool(name, factory)` 注册自定义装饰器，通过 `removeTool(name)` 移除
 - [ ] 用户可通过 `registerAdaptor(name, adaptor)` 注册自定义平台适配器
-- [ ] 打包输出 ESM、CJS、UMD 三种格式
+- [ ] 打包输出 ESM 格式
 
 ### 4.2 非功能验收标准
 

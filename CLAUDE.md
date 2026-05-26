@@ -50,7 +50,7 @@ SetupAxios 是一个基于原生 JS/TS 的异步请求库，定位类似 Axios�
 
 ### 技术栈
 - TypeScript
-- Webpack（打包输出 ESM + CJS + UMD）
+- Webpack（打包输出 ESM）
 - pnpm
 
 ### 目录结构
