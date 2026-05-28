@@ -47,15 +47,15 @@ export const setupAxios = (config: DftBaseCfg, platform: PlatformType = "web") =
     return result;
   };
   
-  const addReqInterceptor = (fn: ReqInterceptor, isTempory = false) => {
-    if (!isTempory) {
+  const addReqInterceptor = (fn: ReqInterceptor, isTemporary = false) => {
+    if (isTemporary) {
       temporySet.add(fn);
     }
     reqInterceptor.push(fn);
   };
 
-  const addResInterceptor = (fn: ResInterceptor, isTempory = false) => {
-    if (!isTempory) {
+  const addResInterceptor = (fn: ResInterceptor, isTemporary = false) => {
+    if (isTemporary) {
       temporySet.add(fn);
     }
     resInterceptor.push(fn);

@@ -9,10 +9,13 @@
 import type { AllReqConfig } from "../types/index.js";
 
 export const urlParamsParse = (config: AllReqConfig): URL => {
-  
-  const url = new URL(config.baseUrl, config.url);
+  // Ensure baseUrl ends with / so that relative paths append rather than replace
+  const base = config.baseUrl.endsWith("/") ? config.baseUrl : config.baseUrl + "/";
+  // Strip leading / from url so it appends to the base path (Axios-like behavior)
+  const path = config.url.replace(/^\//, "");
+  const url = new URL(path, base);
   const searchParam = url.searchParams;
-  
+
   config?.params && (Object.entries(config.params).forEach((item) => {
         searchParam.append(item[0], String(item[1]));
   }));

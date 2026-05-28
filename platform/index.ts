@@ -21,15 +21,11 @@ export const registerAdaptor = (adaptorName: string,  adaptor: PlatformAdaptor) 
 
 
 export const getPlatformRequest = (platform: PlatformType, config: DftBaseCfg) => {
-  let platformAdaptor;
-  switch (platform) {
-    case "web":
-      platformAdaptor = webAdaptor;
-      break;
-    default:
-      platformAdaptor = webAdaptor;
-      break;
+  const adaptor = adaptors[platform];
+  if (adaptor) {
+    return adaptor(config);
   }
 
-  return platformAdaptor(config);
+  console.warn(`Platform "${platform}" is not registered, falling back to web adaptor.`);
+  return webAdaptor(config);
 };

@@ -11,6 +11,11 @@ import type { AllReqConfig } from "../types/index.js";
 export const writeBodyData = (requestInit: any, cfg: AllReqConfig) => {
   if (cfg.headers?.["Content-Type"] === "application/json") {
     requestInit["body"] = JSON.stringify(cfg.data);
+  } else if (cfg.data !== undefined && cfg.data !== null) {
+    console.warn(
+      `[writeBodyData] data is present but Content-Type is "${cfg.headers?.["Content-Type"] ?? "not set"}". ` +
+      `Only "application/json" Content-Type is automatically serialized. The body will not be set.`
+    );
   }
   //其它的就不自动处理了
 };

@@ -18,7 +18,10 @@ maxTurns: 15
 
 ## 前置要求
 
-每次被调用时，**必须**先用 Read 读取 `.claude/skills/git/SKILL.md` 以及其引用的子文档（commands.md、collaboration.md 等），将其中所有规则作为操作依据。
+每次被调用时：
+
+1. 先用 `memory_smart_search` 检索 agentmemory 中是否已有提交规范、分支策略等相关上下文，避免重复查找
+2. **必须**用 Read 读取 `.claude/skills/git/SKILL.md` 以及其引用的子文档（commands.md、collaboration.md 等），将其中所有规则作为操作依据。
 
 ## 工作流程
 

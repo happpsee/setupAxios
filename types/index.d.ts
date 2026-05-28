@@ -81,7 +81,7 @@ export interface DecorateInstanceType<T = any, D = any> {
   after: Array<(...args: any[]) => any>
   registryAfter: (...args: any[]) => any
   result?: T
-  cancel: Boolean
+  cancel: boolean
 }
 
 export interface CombinateInstanceType<T = any, D = any> {
@@ -90,7 +90,7 @@ export interface CombinateInstanceType<T = any, D = any> {
   registryAfter: (...args: any[]) => any;
   arguments: D;
   result?: T;
-  cancel: Boolean;
+  cancel: boolean;
 }
 
 export type ToolInstanceType<T = any, D = any> = (config: DecorateInstanceType<T, D> | CombinateInstanceType<T>) => any;

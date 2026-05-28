@@ -20,8 +20,8 @@ const platformRequest:PlatformAdaptor = (config: DftBaseCfg) => {
   //config是基础配置
 
   const request = async <Req = any, Res = any>(reqCfg: AdaptorReq<Req>): Promise<Res> => {
-    //cfg是本次配置，这里合并
-    const cfg = ({...reqCfg, ...config}) as AllReqConfig<Req>; 
+    //cfg是本次配置，请求级配置优先于基础配置
+    const cfg = ({...config, ...reqCfg}) as AllReqConfig<Req>;
 
     const url = urlParamsParse(cfg);
 
@@ -31,9 +31,7 @@ const platformRequest:PlatformAdaptor = (config: DftBaseCfg) => {
       writeBodyData(reqInit, cfg);
     }
 
-    const requestConfig = new Request(url, reqInit);
-    
-    return fetch(new Request(requestConfig))
+    return fetch(url, reqInit)
     .then((ans) => {
       const contentType = ans.headers.get("Content-Type");
       if (contentType?.includes("application/json")) {
@@ -46,4 +44,3 @@ const platformRequest:PlatformAdaptor = (config: DftBaseCfg) => {
 };
 
 export default platformRequest;
-

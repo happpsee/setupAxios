@@ -1,0 +1,230 @@
+{
+  "project": "SetupAxios",
+  "version": "1.0.0",
+  "analyzedAt": "2026-05-28",
+  "sections": {
+    "architecture": {
+      "summary": "三层架构 TypeScript 异步请求库，对标 Axios，解决拦截器只能全局配置和仅有裸请求能力两个核心不足",
+      "layers": {
+        "decoratorLayer": {
+          "files": ["apiRequest.ts", "jsonRequest.ts"],
+          "responsibility": "链式装饰器组合 + JSON Schema 声明式配置，基于洋葱模型执行装饰器工具链",
+          "keyExports": ["DecorateManage", "setupApiAxios", "addDecorateTool", "removeDecorateTool", "CombinateManage", "setupJsonAxios", "addCombinateTool", "removeCombinateTool"]
+        },
+        "coreLayer": {
+          "files": ["commonRequest.ts"],
+          "responsibility": "裸请求单元 GET/POST/PUT/DELETE + 请求/响应拦截器，isTempory 区分全局/局部拦截器",
+          "keyExports": ["setupAxios", "SetupAxiosReturn"]
+        },
+        "infrastructureLayer": {
+          "files": ["tools/index.ts", "tools/log.ts", "tools/timeout.ts", "tools/errReport.ts", "platform/index.ts", "platform/web.ts", "utils/getTime.ts", "utils/urlParse.ts", "utils/writeBodyData.ts", "types/index.d.ts"],
+          "responsibility": "装饰器工厂 toolManageFactory、内置装饰器(log/timeout/errReport)、平台适配器(web fetch)、类型系统、工具函数"
+        }
+      },
+      "dataFlow": "用户调用 setupApiAxios.request() → @DecorateManage 装饰器拦截 → 洋葱模型执行 toolMap 中所有装饰器 → commonRequest 裸请求 → Web fetch 适配器 → 响应经 resInterceptor 处理 → after 切面清理 → 返回结果",
+      "designPatterns": {
+        "factory": {
+          "location": "tools/index.ts:toolManageFactory()",
+          "description": "创建 Map 存储装饰器实例，返回 toolMap/addTool/removeTool，实现装饰器注册中心"
+        },
+        "decorator": {
+          "location": "apiRequest.ts:@DecorateManage()",
+          "description": "ES 类方法装饰器，拦截 request() 方法，注入装饰器执行链。addDecorateTool 通过闭包 operate 注册中心的 addTool"
+        },
+        "onionModel": {
+          "location": "apiRequest.ts:46-61, jsonRequest.ts:38-53",
+          "description": "装饰器按 toolMap 注册顺序依次执行 → originalMethod → after 队列逆序执行（即使 cancel=true 也执行 after 用于清理）"
+        },
+        "adapter": {
+          "location": "platform/index.ts:registerAdaptor(), platform/web.ts:platformRequest",
+          "description": "PlatformAdaptor 统一类型，registerAdaptor 动态注册，getPlatformRequest 按平台名获取适配器实例"
+        }
+      }
+    },
+    "coreModules": {
+      "commonRequest": {
+        "file": "commonRequest.ts",
+        "functionSignature": "setupAxios(config: DftBaseCfg, platform: PlatformType = \"web\")",
+        "returnType": "{ commonRequest: async <T, D>(requestConfig: AdaptorReq<D>) => ..., addReqInterceptor: (fn: ReqInterceptor, isTempory?: boolean) => void, addResInterceptor: (fn: ResInterceptor, isTempory?: boolean) => void }",
+        "interceptorMechanism": {
+          "temporySet": "WeakSet 跟踪局部拦截器引用",
+          "isTemporyLogic": "isTempory=false 时（注意：这里语义是 isTempory=false 代表局部/临时），将 fn 加入 temporySet；每次请求后遍历 interceptor 数组，filter 掉 temporySet 中存在的项并 delete",
+          "bugNote": "布尔值语义反转：isTempory=false 添加临时标记，isTempory=true（默认值含义混乱）反而是全局拦截器。这不符合直觉，存在语义bug",
+          "executionOrder": "请求拦截器 reduce 串联执行 → 发出请求 → 响应拦截器 reduce 串联执行。局部拦截器在各自的 reduce 之后立即被 filter 清除"
+        },
+        "requestFlow": "1. 创建 reqInterceptorInstance = { config: requestConfig } 2. reqInterceptor.reduce((a, c) => c(a), reqInterceptorInstance) 3. 清除局部请求拦截器 4. platformReq(config.config) 发送实际请求 5. 创建 resInterceptorInstance = { data: ans } 6. resInterceptor.reduce((a, c) => c(a), resInterceptorInstance) 7. 清除局部响应拦截器 8. return result"
+      },
+      "apiRequest": {
+        "file": "apiRequest.ts",
+        "DecorateManage": "ES2022 类方法装饰器工厂，使用 ClassMethodDecoratorContext。内部调用 toolManageFactory() 创建装饰器注册中心，通过模块级闭包 addTool/removeTool 暴露全局操作入口",
+        "onionExecution": "1. 创建 decoratorInstance (DecorateInstanceType) 含 this/arguments/originMethod/after[]/registryAfter/cancel 2. for...of toolMap.values() 顺序执行每个装饰器 3. 若 !cancel 则执行 originMethod.apply() 4. 无论 cancel，遍历 after 队列执行清理函数 5. return decoratorInstance.result",
+        "setupApiAxios": "类封装：构造函数调用 setupAxios 获取 commonRequest 和拦截器方法。request() 方法被 @DecorateManage() 装饰以注入洋葱模型。提供 get/post/put/delete 便捷方法，根据是否传 data/query 参数调用 request",
+        "globalRegistry": "模块级变量 addTool/removeTool，通过 addDecorateTool/removeDecorateTool 函数 + 闭包 operate 装饰器注册中心"
+      },
+      "jsonRequest": {
+        "file": "jsonRequest.ts",
+        "CombinateManage": "高阶函数包装 originMethod，内部使用 toolManageFactory 创建独立装饰器注册中心。不同于 DecorateManage 的类装饰器方式，这是纯函数式包装",
+        "setupJsonAxios": "接收 { jsonAxios, config, platform } 配置。将 jsonAxios 对象转为 Map<string, {target: JsonCfgType, metadata: Record<string, any>}>。返回 useApi(name, data) 方法，查找对应配置并通过 CombinateManage(commonRequest) 执行",
+        "jsonSchemaMechanism": "jsonAxios 对象的 key 作为 API 名称，value 包含 url/method 等请求配置。useApi 按 name 查找配置，合并传入的 data 后发起请求"
+      },
+      "toolManageFactory": {
+        "file": "tools/index.ts",
+        "factory": "toolManageFactory() 返回 { toolMap: Map([[\"log\", Log]]), addTool(name, tool), removeTool(name) }",
+        "defaultTool": "内置注册 Log 装饰器作为默认工具",
+        "typeConstraint": "装饰器需遵循 ToolInstanceType 类型（工厂函数返回装饰器函数）"
+      }
+    },
+    "typeSystem": {
+      "file": "types/index.d.ts",
+      "exports": {
+        "ApiMethodType": "'GET' | 'POST' | 'PUT' | 'DELETE'",
+        "PlatformType": "keyof PlatformTypeMap = 'web' | 'wx' | 'weex' | 'uni'",
+        "PlatformTypeMap": "映射平台名称为空字符串类型，用于限制 PlatformType 有效值",
+        "DftBaseCfg": "{ baseUrl: string; timeout: number } — 基础配置",
+        "AdaptorReq<T>": "extends Partial<DftBaseCfg>, 实际请求配置: url, method, data?, params?, headers?, query?",
+        "AllReqConfig<T>": "extends DftBaseCfg, AdaptorReq<T> — 合并基础配置和请求配置",
+        "ReqInterceptorConfig<T>": "{ config: AdaptorReq<T> } — 请求拦截器配置容器",
+        "ResInterceptorConfig<T>": "{ data: T } — 响应拦截器配置容器",
+        "ReqInterceptor": "(config: ReqInterceptorConfig<T>) => ReqInterceptorConfig<T> — 请求拦截器函数签名",
+        "ResInterceptor": "(res: ResInterceptorConfig<T>) => ResInterceptorConfig<T> — 响应拦截器函数签名",
+        "CommonRequest": "<Req, Res>(cfg: AdaptorReq<Req>) => Promise<Res> — 通用请求函数类型",
+        "PlatformAdaptor": "(cfg: DftBaseCfg) => CommonRequest — 平台适配器工厂函数类型",
+        "JsonCfgType": "{ url: string; method: ApiMethodType; [key: string]: any } — JSON Schema 配置项类型",
+        "DecorateInstanceType<T, D>": "{ this: T; arguments: D; originMethod: (...args:any[]) => any; after: Array<(...args: any[]) => any>; registryAfter: (...args: any[]) => any; result?: T; cancel: Boolean } — 装饰器实例上下文",
+        "CombinateInstanceType<T, D>": "{ originMethod; after: Array<...>; registryAfter; arguments: D; result?: T; cancel: Boolean } — 组合式实例上下文（无 this）",
+        "ToolInstanceType<T, D>": "(config: DecorateInstanceType<T, D> | CombinateInstanceType<T>) => any — 装饰器统一类型（工厂函数返回的装饰器函数）"
+      },
+      "relationships": "AdaptorReq extends Partial<DftBaseCfg> → AllReqConfig extends both DftBaseCfg and AdaptorReq → CommonRequest 使用 AdaptorReq → PlatformAdaptor 工厂接收 DftBaseCfg 返回 CommonRequest → ToolInstanceType 接受 DecorateInstanceType | CombinateInstanceType 联合类型"
+    },
+    "platformAdapter": {
+      "manager": {
+        "file": "platform/index.ts",
+        "registerAdaptor": "(adaptorName: string, adaptor: PlatformAdaptor) => void — 动态注册适配器到 adaptors Record",
+        "getPlatformRequest": "(platform: PlatformType, config: DftBaseCfg) => 根据 platform 从 adaptors 查找适配器并调用(config)，默认 fallback 到 web",
+        "adaptorsRegistry": "Record<string, PlatformAdaptor>，硬编码注册 webAdaptor"
+      },
+      "webAdapter": {
+        "file": "platform/web.ts",
+        "implementation": "platformRequest 是 PlatformAdaptor 类型，接收 DftBaseCfg 返回 CommonRequest。内部合并 baseCfg 和 reqCfg，通过 urlParamsParse 构建完整 URL，对非 GET 请求通过 writeBodyData 写入 body，使用原生 fetch API 发送请求",
+        "responseHandling": "检查 Content-Type 头，若含 application/json 则调用 .json() 解析，否则返回原始 Response 对象",
+        "dependencies": "urlParamsParse (构建 URL+query params), writeBodyData (JSON body 序列化)"
+      },
+      "extensionGuide": "1. 实现 PlatformAdaptor 类型函数（接收 DftBaseCfg 返回 CommonRequest）2. 通过 registerAdaptor('平台名', adaptor) 注册 3. 创建 setupAxios 实例时传入 platform 参数"
+    },
+    "builtinDecorators": {
+      "log": {
+        "file": "tools/log.ts",
+        "function": "Log(): ToolInstanceType",
+        "logic": "在请求开始时打印 [Request Start Time: HH:mm:ss ms] 和 cfg.arguments。通过 cfg.registryAfter 注册 after 切面，请求结束后打印 [Request End Time: HH:mm:ss ms] 和 cfg.result",
+        "dependency": "utils/getTime.ts 格式化时间戳"
+      },
+      "timeout": {
+        "file": "tools/timeout.ts",
+        "function": "timeoutTool(timer: string): ToolInstanceType",
+        "logic": "使用 setTimeout 在 timer 毫秒后检查：若 result 已存在且未 cancel（请求已完成），不执行；否则设置 result = Promise.reject(Error('请求超时!')) 并 cancel = true 取消请求",
+        "bugNote": "timer 参数类型为 string，内部用 +timer 转换，类型设计不严格"
+      },
+      "errReport": {
+        "file": "tools/errReport.ts",
+        "function": "errReportTool<T>(callback: any): ToolInstanceType",
+        "logic": "通过 cfg.registryAfter 注册 callback 到 after 队列。callback 在请求结束后执行（无论成功或取消），可用于错误上报。callback 参数类型为 any，缺乏类型约束"
+      }
+    },
+    "entryExports": {
+      "file": "index.ts",
+      "exports": {
+        "setupAxios": "from commonRequest — 裸请求实例工厂",
+        "setupApiAxios": "from apiRequest — 类装饰器请求（含 .use() 链式调用）",
+        "setupJsonAxios": "from jsonRequest — JSON Schema 声明式请求"
+      },
+      "usageDifference": "setupAxios 返回 {commonRequest, addReqInterceptor, addResInterceptor} 裸请求；setupApiAxios 是类实例，通过 request/get/post/put/delete 调用并支持 @DecorateManage 装饰器链；setupJsonAxios 返回 {useApi, addReqInterceptor, addResInterceptor}，通过 useApi(name, data) 按声明式配置调用"
+    },
+    "agentTeam": {
+      "members": {
+        "architect": {
+          "file": ".claude/agents/architect.md",
+          "role": "首席架构师，技术最终裁决者，自主选择方案，拒绝不合理需求，变更范围裁定，主动创新",
+          "tools": "Read, Write, Edit, Glob, Grep, Bash, Agent, TodoWrite, WebFetch, WebSearch, AskUserQuestion, EnterPlanMode, ExitPlanMode",
+          "maxTurns": 60,
+          "assignment": "跨模块架构变更、创新方案、技术选型"
+        },
+        "frontend-library-dev": {
+          "file": ".claude/agents/frontend-library-dev.md",
+          "role": "前端专家，负责新增装饰器、扩展平台适配器、修改请求API、编写类型定义",
+          "tools": "Read, Write, Edit, Glob, Grep, Bash",
+          "maxTurns": 30,
+          "assignment": "核心功能开发",
+          "skills": "typescript, javascript, andrej-karpathy-skills"
+        },
+        "testing": {
+          "file": ".claude/agents/testing.md",
+          "role": "测试工程师，负责单元测试/集成测试、排查失败",
+          "tools": "Read, Write, Edit, Glob, Grep, Bash",
+          "maxTurns": 30,
+          "assignment": "质量保障",
+          "testFramework": "Vitest",
+          "testStrategy": "纯函数优先 → 带mock模块测试 → 集成测试；覆盖正常路径/边界条件/错误路径/副作用四个维度"
+        },
+        "pm": {
+          "file": ".claude/agents/pm.md",
+          "role": "产品经理，负责需求分析和PRD编写",
+          "tools": "Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion",
+          "maxTurns": 30,
+          "assignment": "需求管理",
+          "outputPath": "PRD/<功能名称>_v<版本号>.md"
+        },
+        "git-committer": {
+          "file": ".claude/agents/git-committer.md",
+          "role": "Git提交专员，仅负责代码提交和推送",
+          "tools": "Bash, Read",
+          "maxTurns": 15,
+          "assignment": "Git操作",
+          "constraints": "严禁读取源代码/.ts/.js/.json(除git skill外)，无Write/Edit权限，必须读取git skill规则"
+        }
+      },
+      "collaborationFlow": "架构师统筹全局 → 分派任务给 frontend-library-dev(功能开发) / testing(测试) / pm(需求) → 审查交付 → git-committer 提交推送。PM 编写需求文档 → 架构师制定方案 → 开发者实现 → 测试验证 → git-committer 提交"
+    },
+    "buildConfig": {
+      "packageManager": "pnpm@10.33.0",
+      "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1 — 测试命令尚未配置实际运行器"
+      },
+      "dependencies": {
+        "axios": "^1.16.1",
+        "platform-network": "^1.0.0"
+      },
+      "moduleType": "ESM (\"type\": \"module\")",
+      "main": "index.js",
+      "buildMethod": "pnpm run build (根据 CLAUDE.md，使用 Webpack 打包输出 ESM + CJS + UMD)"
+    },
+    "prdStatus": {
+      "expectedPath": "PRD/SetupAxios_v1.0.md",
+      "exists": false,
+      "note": "PRD 文件不存在。根据 CLAUDE.md 和 git log，v1.0 需求文档参考了 15 个代码审查发现的 bug（commit fede361）。功能清单包括：裸请求 GET/POST/PUT/DELETE、请求/响应拦截器(isTempory)、链式装饰器请求(@DecorateManage)、JSON Schema 请求(CombinateManage)、三个内置装饰器(log/timeout/errReport)、Web fetch 平台适配器"
+    },
+    "codeQualityIssues": {
+      "typeSafety": [
+        "大量 any 类型使用：addTool/removeTool 模块级变量直接 any，addDecorateTool/removeDecorateTool 参数 fn:any",
+        "timeoutTool 的 timer 参数类型为 string 而非 number",
+        "errReportTool 的 callback 参数类型为 any",
+        "writeBodyData 的 requestInit 参数类型为 any",
+        "DecorateManage 中 originalMethod/context 均为 any 类型"
+      ],
+      "logicIssues": [
+        "commonRequest.ts: isTempory 布尔值语义反转 — isTempory=true 跳过 WeakSet 添加（被视为全局），isTempory=false 添加 WeakSet（被视为临时）",
+        "platform/index.ts: getPlatformRequest 的 switch 有 default fallthrough 但 adaptors 硬编码只有 web，registerAdaptor 注册的适配器不会被 switch 匹配到",
+        "index.ts 有注释代码 //1.类型支持很差劲 //2. 装饰工具能做的扩展操作很少 — 表示项目初期状态"
+      ],
+      "duplication": [
+        "DecorateManage 和 CombinateManage 中的洋葱模型执行代码高度相似（创建实例 → 遍历 toolMap → 执行 originMethod → 遍历 after），可抽象"
+      ],
+      "missingFeatures": [
+        "无测试框架配置（package.json test 脚本仅为 echo），但 testing agent 提及使用 Vitest",
+        "上传/下载进度监听缺失",
+        "请求取消（AbortController）未直接暴露",
+        "无 TypeScript 编译配置（tsconfig.json）",
+        "无 Webpack 配置（虽然 CLAUDE.md 提及）"
+      ]
+    }
+  }
+}

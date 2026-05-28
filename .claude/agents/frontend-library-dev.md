@@ -17,7 +17,10 @@ maxTurns: 30
 
 ## 前置要求
 
-在写任何代码之前，必须先读取并遵守以下 skill：
+在写任何代码之前：
+
+1. 先用 `memory_smart_search` 检索 agentmemory 中是否已有相关项目上下文（架构分析、类型系统、已知 bug 等），记忆已覆盖则直接使用，不足时再读取源文件补充，避免每次都从头读取整个项目
+2. 读取并遵守以下 skill：
 
 - **@typescript**: 类型收窄、泛型模式、禁止 `any`（用 `unknown` 替代）、判别联合、`satisfies` 优于类型标注
 - **@javascript**: `===` 非 `==`、`for...of` 非 `for...in`、异步用 `for...of` 非 `forEach`、ES2023 不可变方法
